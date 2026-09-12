@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#18241E">
+<title>Radius produktion</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<script src="https://alcdn.msauth.net/browser/2.38.4/js/msal-browser.min.js"></script>
+<style>
+  :root{--bg:#EEF1EE;--paper:#fff;--ink:#18241E;--ink-2:#4B5A52;--line:#CBD3CE;--green:#2E6B4E;--green-soft:#DDEBE3;--copper:#B4602B;--copper-soft:#F5E4D8;--warn:#8A2B18;--warn-soft:#F6DED8;--blue:#2C5A78;--blue-soft:#DCE8F0;--r:10px}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:16px;line-height:1.4}
+  button,input,textarea,select{font:inherit;color:inherit}
+  button{cursor:pointer;border:0;background:none;padding:0}
+  input,textarea,select{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;width:100%}
+  input:focus,textarea:focus,select:focus,button:focus-visible{outline:3px solid var(--copper);outline-offset:1px}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+  header{padding:14px 16px 10px;display:flex;justify-content:space-between;align-items:baseline;gap:12px;max-width:640px;margin:0 auto}
+  header h1{margin:0;font-size:18px;font-weight:600}
+  header .sum{color:var(--ink-2);font-size:13px;text-align:right}
+  header .sum .off{color:var(--warn)} header .sum .pend{color:var(--copper)}
+  main{padding:0 16px 96px;max-width:640px;margin:0 auto}
+  .view{display:none}.view.on{display:block}
+  .readout{background:var(--ink);color:#fff;border-radius:14px;padding:18px 18px 16px;min-height:112px;display:flex;flex-direction:column;justify-content:flex-end;margin-bottom:12px}
+  .readout .name{font-size:19px;font-weight:500;line-height:1.2}
+  .readout .meta{color:#B7C4BD;font-size:13px;margin-top:4px}
+  .readout .qty{font-size:56px;font-weight:600;line-height:1;margin-top:8px;letter-spacing:-.02em}
+  .readout .qty small{font-size:16px;font-weight:400;color:#B7C4BD;margin-left:8px;letter-spacing:0}
+  .readout.empty .name{color:#B7C4BD;font-weight:400}
+  .readout.unknown{background:var(--warn-soft);color:var(--warn)} .readout.unknown .meta{color:var(--warn)}
+  .scanrow{display:flex;gap:8px;margin-bottom:8px} .scanrow input{flex:1;font-size:18px;padding:14px}
+  .btn{border-radius:var(--r);padding:12px 16px;font-weight:500;background:var(--paper);border:1px solid var(--line);white-space:nowrap}
+  .btn.copper{background:var(--copper);color:#fff;border-color:var(--copper)} .btn.green{background:var(--green);color:#fff;border-color:var(--green)}
+  .btn.quiet{background:none;border-color:transparent;color:var(--ink-2);padding-left:6px;padding-right:6px} .btn.danger{color:var(--warn);border-color:var(--warn)}
+  .btn:disabled{opacity:.5;cursor:default}
+  .steprow{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ink-2);margin-bottom:12px;flex-wrap:wrap}
+  .chip{border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:6px 12px;font-size:14px}
+  .chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .chip.on.copper{background:var(--copper);border-color:var(--copper)} .chip.on.blue{background:var(--blue);border-color:var(--blue)}
+  #cam{display:none;margin-bottom:12px;border-radius:14px;overflow:hidden;background:#000;position:relative}
+  #cam video{width:100%!important;display:block}
+  #cam .close{position:absolute;top:10px;right:10px;background:rgba(0,0,0,.6);color:#fff;border-radius:999px;padding:8px 12px;font-size:14px}
+  .note{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;font-size:14px;color:var(--ink-2);margin-bottom:12px}
+  .note.warn{background:var(--warn-soft);border-color:transparent;color:var(--warn)} .note.blue{background:var(--blue-soft);border-color:transparent;color:var(--blue)} .note.copper{background:var(--copper-soft);border-color:transparent;color:var(--copper)}
+  h2{font-size:14px;font-weight:600;color:var(--ink-2);margin:20px 0 8px}
+  .list{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+  .row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid var(--line)} .row:first-child{border-top:0}
+  .row .txt{flex:1;min-width:0} .row .n{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .row .s{font-size:13px;color:var(--ink-2)}
+  .row .q{font-weight:600;font-size:18px;min-width:44px;text-align:right} .row .q small{font-size:12px;font-weight:400;color:var(--ink-2)}
+  .row .q.warn{color:var(--warn)}
+  .pm{display:flex;gap:4px} .pm button{width:38px;height:38px;border-radius:8px;border:1px solid var(--line);background:var(--paper);font-size:20px;line-height:1}
+  .row.hit{background:var(--green-soft)} .empty{padding:18px 14px;color:var(--ink-2);font-size:14px} .rowbtn{width:100%;text-align:left}
+  .field{margin-bottom:10px} .field label{display:block;font-size:13px;color:var(--ink-2);margin-bottom:4px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px} .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .sheet{position:fixed;inset:0;background:rgba(24,36,30,.45);display:none;align-items:flex-end;z-index:20} .sheet.on{display:flex}
+  .sheet .card{background:var(--paper);width:100%;max-width:640px;margin:0 auto;border-radius:16px 16px 0 0;padding:18px 16px 28px;max-height:88vh;overflow:auto}
+  .sheet .card h3{margin:0 0 12px;font-size:17px}
+  .actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap} .actions .btn{flex:1}
+  nav{position:fixed;bottom:0;left:0;right:0;background:var(--paper);border-top:1px solid var(--line);padding:6px 8px calc(8px + env(safe-area-inset-bottom));z-index:10}
+  nav .inner{display:flex;width:100%;max-width:640px;margin:0 auto} nav button{flex:1;padding:10px 4px;border-radius:8px;color:var(--ink-2);font-size:13px;font-weight:500} nav button.on{background:var(--green-soft);color:var(--green)}
+  .toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:999px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .15s;z-index:30;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis} .toast.on{opacity:1}
+  table.stock{width:100%;border-collapse:collapse;background:var(--paper);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;font-size:14px}
+  table.stock th,table.stock td{padding:8px 10px;border-top:1px solid var(--line);text-align:right} table.stock th{font-weight:600;color:var(--ink-2);font-size:12px} table.stock td:first-child,table.stock th:first-child{text-align:left}
+  #setup{max-width:640px;margin:0 auto;padding:16px}
+  @media (prefers-reduced-motion:reduce){.toast{transition:none}}
+</style>
+</head>
+<body>
+
+<!-- ===== SETUP / LOGIN ===== -->
+<section id="setup" style="display:none">
+  <h1 style="font-size:20px;margin:8px 0 16px">Radius produktion – opsætning</h1>
+  <div class="note">Udfyldes én gang pr. telefon. Værdierne kommer fra app-registreringen i Microsoft Entra og fra dele-linket til "Radius Lager.xlsx".</div>
+  <div class="field"><label>Application (client) ID</label><input id="cfgClient" class="mono" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"></div>
+  <div class="field"><label>Directory (tenant) ID</label><input id="cfgTenant" class="mono" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"></div>
+  <div class="field"><label>Dele-link til Radius Lager.xlsx (OneDrive/SharePoint)</label><input id="cfgLink" placeholder="https://radiusdistillery-my.sharepoint.com/:x:/g/…"></div>
+  <div class="field"><label>Dit navn (skrives i loggen)</label><input id="cfgName" placeholder="fx Mark"></div>
+  <div class="actions"><button class="btn green" id="cfgSave">Gem og log ind</button></div>
+  <div class="note warn" id="cfgErr" style="display:none;margin-top:12px"></div>
+</section>
+
+<div id="app" style="display:none">
+<header>
+  <h1>Radius produktion</h1>
+  <div class="sum" id="sum"></div>
+</header>
+
+<main>
+<!-- ===== PRODUKTION ===== -->
+<section class="view on" id="v-prod">
+  <div class="note">Produktion registreres, når resultatlinjen står i lab-bogen: bog + side giver lot-nr. Det lander på mellemlageret, indtil det tappes til en SKU.</div>
+  <div class="actions" style="margin:0 0 16px"><button class="btn green" id="newLotBtn">Ny produktion (lot)</button></div>
+  <h2>Mellemlager – produceret, ikke tappet</h2>
+  <div class="list" id="bulkList"><div class="empty">Intet på mellemlager.</div></div>
+  <h2>Seneste produktioner</h2>
+  <div class="list" id="prodList"><div class="empty">Ingen.</div></div>
+</section>
+
+<!-- ===== FÆRDIGVARE ===== -->
+<section class="view" id="v-fg">
+  <div class="note">Færdigvarer på lager pr. lokation, som lager-appen ser dem. Tapninger herfra lægger flasker på Hovedlager med lot-nr. Flytning til butik, salg, udtag og afgift håndteres i lager-appen.</div>
+  <div id="stockBox"></div>
+  <div class="actions"><button class="btn" id="copyStock">Kopiér lager til Excel</button></div>
+  <h2>Seneste tapninger</h2>
+  <div class="list" id="logList"></div>
+  <h2>Konto</h2>
+  <div class="note" id="acctNote"></div>
+  <div class="actions" style="margin:0"><button class="btn" id="setupBtn">Opsætning</button><button class="btn danger" id="logoutBtn">Log ud</button></div>
+</section>
+
+<!-- ===== VARER ===== -->
+<section class="view" id="v-items">
+  <div class="note">Stamdata fra fanen Varer i Radius Lager.xlsx. cl og % skal være udfyldt for at afgift kan regnes – varer med manglende tal er markeret.</div>
+  <div class="actions" style="margin:0 0 12px"><button class="btn green" id="addItemBtn">Ny vare</button><button class="btn" id="reloadBtn">Hent igen fra Excel</button></div>
+  <input id="itemFilter" placeholder="Filtrér …" autocomplete="off" style="margin-bottom:6px">
+  <div class="list" id="itemList"></div>
+</section>
+
+</main>
+
+<nav><div class="inner">
+  <button class="on" data-v="prod">Produktion</button><button data-v="fg">Færdigvare</button><button data-v="items">Varer</button>
+</div></nav>
+</div>
+
+<div class="sheet" id="sheet"><div class="card" id="sheetCard"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const APP='produktion';
+  // ================= config & state =================
+  const LS = { cfg:'rl:cfg', cache:'rl:cache', queue:'rl:queue', step:'rl:step' };
+  // Forudfyldte værdier for Radius Distillery – rettes her, så brugerne kun skal skrive deres navn
+  const DEFAULTS = { client:'f1155716-b95c-4458-8e83-6831990f3d5e', tenant:'4ccf33eb-30bb-4d74-8a38-c7ed7dd81a85', link:'https://u1ckd9n-my.sharepoint.com/:x:/g/personal/august_radiusdistillery_com/IQAY9-A3MZ_9QbbU49J5JprbAfiRHuxhLl8AOyz8vwXnjxU?e=emZHca' };
+  const cfg = JSON.parse(localStorage.getItem(LS.cfg)||'null');
+  const DUMMY = { addEventListener(){}, classList:{add(){},remove(){},toggle(){},contains(){return false}}, style:{}, innerHTML:'', textContent:'', value:'', disabled:false, focus(){}, querySelector(){return null}, querySelectorAll(){return []} };
+  const $ = s => document.querySelector(s) || DUMMY;
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const norm = s => String(s ?? '').trim().toUpperCase().replace(/\s+/g,'');
+  const iso = () => new Date().toISOString().slice(0,19);
+  const uid = () => Math.random().toString(36).slice(2,8) + Date.now().toString(36).slice(-4);
+  const num = v => { const n = Number(String(v??'').replace(',','.')); return Number.isFinite(n) ? n : null; };
+  const fmt = (n,d=1) => Number(n||0).toLocaleString('da-DK',{maximumFractionDigits:d});
+  let toastT; function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'),1800); }
+  function beep(ok=true){ try{ if(navigator.vibrate) navigator.vibrate(ok?40:[60,40,60]); const ac = beep.ac || (beep.ac = new (window.AudioContext||window.webkitAudioContext)()); const o=ac.createOscillator(), g=ac.createGain(); o.frequency.value=ok?1200:300; g.gain.value=.08; o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime+.09); }catch(e){} }
+
+  // tables: T.varer = [{_i:rowIndex, SKU, Navn, ...}], etc.
+  let T = JSON.parse(localStorage.getItem(LS.cache)||'null') || { varer:[], bev:[], prod:[], bulk:[], kunder:[], ind:[] };
+  let Q = JSON.parse(localStorage.getItem(LS.queue)||'[]'); // pending ops [{op:'add'|'update', table, values, index, id}]
+  let step = JSON.parse(localStorage.getItem(LS.step)||'1');
+  let online = true, syncing = false;
+  const TABLES = { varer:'tblVarer', bev:'tblBevaegelser', prod:'tblProduktion', bulk:'tblMellemlager', kunder:'tblKunder', ind:'tblIndstillinger' };
+  const COLS = {
+    varer:['SKU','Navn','Øko','cl','Pct','Stregkode','KolliStregkode','FlaskerPrKolli','Aktiv','Tjek','Note','Opdateret'],
+    bev:['ID','Tidspunkt','Type','SKU','Antal','Fra','Til','Afgift','Kunde','Årsag','Lot','Hvem','Note','LPA','AfgiftKr'],
+    prod:['LotNr','Dato','Type','Produkt','SKU','Bog','Side','Liter','Pct','LPA','KildeLots','Beholder','Hvem','Note'],
+    bulk:['ID','LotNr','Produkt','SKU','Liter','Pct','LPA','Beholder','Status','Oprettet','Opdateret','Hvem','Note'],
+    kunder:['Kunde','Afgiftsstatus','CVR','Note'], ind:['Nøgle','Værdi','Note'] };
+  const setting = (k, d) => { const r = T.ind.find(x=>x['Nøgle']===k); return r && r['Værdi']!=='' && r['Værdi']!=null ? r['Værdi'] : d; };
+  const SATS = () => num(setting('Afgiftssats',150)) ?? 150;
+  const LEMP = () => num(setting('Lempelse pct',0)) ?? 0;
+  const LOCS = () => String(setting('Lokationer','Hovedlager;Butik')).split(';').map(s=>s.trim()).filter(Boolean);
+  const REASONS = () => String(setting('Udtagsårsager','Smagning;Marketing/gave;Vareprøve B2B;Eget forbrug;Brækage/svind')).split(';').map(s=>s.trim()).filter(Boolean);
+  const prod = sku => T.varer.find(p=>norm(p.SKU)===norm(sku));
+  const findBy = code => { const c=norm(code); if(!c) return null; return T.varer.find(p=>norm(p.Stregkode)===c) || T.varer.find(p=>norm(p.KolliStregkode)===c) || T.varer.find(p=>norm(p.SKU)===c) || null; };
+  const isColli = (p,code) => !!p.KolliStregkode && norm(p.KolliStregkode)===norm(code);
+  const lpaPerBottle = p => { const cl=num(p.cl), pct=num(p.Pct); return (cl&&pct) ? cl/100*pct/100 : null; };
+
+  // ================= Microsoft Graph =================
+  let pca=null, account=null, drive=null, session=null;
+  const SCOPES = ['User.Read','Files.ReadWrite'];
+  async function initAuth(){
+    pca = new msal.PublicClientApplication({ auth:{ clientId:cfg.client, authority:`https://login.microsoftonline.com/${cfg.tenant}`, redirectUri: location.origin + location.pathname }, cache:{ cacheLocation:'localStorage' } });
+    const res = await pca.handleRedirectPromise().catch(e=>{ throw e; });
+    if(res && res.account) account = res.account;
+    if(!account){ const accs = pca.getAllAccounts(); if(accs.length) account = accs[0]; }
+    if(!account){ await pca.loginRedirect({ scopes:SCOPES }); return false; }
+    return true;
+  }
+  async function token(){ try{ const r = await pca.acquireTokenSilent({ scopes:SCOPES, account }); return r.accessToken; }catch(e){ await pca.acquireTokenRedirect({ scopes:SCOPES, account }); throw e; } }
+  async function graph(path, opts={}, retry=true){
+    const t = await token(); const headers = Object.assign({ Authorization:'Bearer '+t, 'Content-Type':'application/json' }, opts.headers||{});
+    if(session && path.includes('/workbook')) headers['workbook-session-id'] = session;
+    const r = await fetch('https://graph.microsoft.com/v1.0'+path, { method:opts.method||'GET', headers, body: opts.body?JSON.stringify(opts.body):undefined });
+    if(r.status===204) return null;
+    const j = await r.json().catch(()=>null);
+    if(!r.ok){
+      if(retry && session && (r.status===404||r.status===400||r.status===409) && path.includes('/workbook')){ session=null; await newSession(); return graph(path, opts, false); }
+      throw new Error((j&&j.error&&j.error.message)||('HTTP '+r.status)); }
+    return j;
+  }
+  async function resolveDrive(){
+    if(drive) return drive;
+    const enc = 'u!' + btoa(cfg.link).replace(/=+$/,'').replace(/\//g,'_').replace(/\+/g,'-');
+    const item = await graph(`/shares/${enc}/driveItem`);
+    drive = `/drives/${item.parentReference.driveId}/items/${item.id}/workbook`; return drive;
+  }
+  async function newSession(){ try{ const b = await resolveDrive(); const s = await graph(b+'/createSession', { method:'POST', body:{ persistChanges:true } }, false); session = s.id; }catch(e){ session=null; } }
+  async function readTable(key){
+    const b = await resolveDrive(); const cols = COLS[key];
+    const r = await graph(`${b}/tables/${TABLES[key]}/rows`); const rows = (r.value||[]);
+    return rows.map(row => { const o={}; cols.forEach((c,j)=>o[c]=row.values[0][j]??''); return o; }).filter(o => Object.keys(o).some(k => o[k]!=='' && o[k]!=null));
+  }
+  async function addRow(key, obj){ const b = await resolveDrive(); return graph(`${b}/tables/${TABLES[key]}/rows`, { method:'POST', body:{ index:null, values:[COLS[key].map(c=>obj[c]??'')] } }); }
+  const KEYCOL = { varer:'SKU', bulk:'ID', bev:'ID', prod:'LotNr', kunder:'Kunde', ind:'Nøgle' };
+  async function updateRow(key, keyVal, obj){
+    const b = await resolveDrive(); const ci = COLS[key].indexOf(KEYCOL[key]);
+    const r = await graph(`${b}/tables/${TABLES[key]}/rows`); const idx = (r.value||[]).findIndex(row => norm(row.values[0][ci]) === norm(keyVal));
+    if(idx<0) throw new Error('Række ikke fundet: '+keyVal);
+    return graph(`${b}/tables/${TABLES[key]}/rows/itemAt(index=${idx})`, { method:'PATCH', body:{ values:[COLS[key].map(c=>obj[c]??'')] } }); }
+
+  async function loadAll(){
+    if(Q.length){ await flush(); if(Q.length){ toast(Q.length+' rækker afventer – henter ikke ny kopi endnu'); return; } }
+    syncing=true; renderSum();
+    try{ for(const k of Object.keys(TABLES)) T[k] = await readTable(k);
+      localStorage.setItem(LS.cache, JSON.stringify(T)); online=true; }
+    catch(e){ online=false; toast('Kunne ikke hente fra Excel: '+e.message); }
+    syncing=false; render();
+  }
+  // queue: local-first writes
+  function enqueue(op){ Q.push(op); localStorage.setItem(LS.queue, JSON.stringify(Q)); flush(); }
+  let flushing=false;
+  async function flush(){
+    if(flushing || !Q.length) return; flushing=true;
+    while(Q.length){ const op = Q[0];
+      try{ if(op.op==='add') await addRow(op.table, op.values); else await updateRow(op.table, op.keyVal, op.values); Q.shift(); localStorage.setItem(LS.queue, JSON.stringify(Q)); online=true; }
+      catch(e){ online=false; break; } }
+    flushing=false; renderSum();
+    if(!Q.length && !online) online=true;
+  }
+  setInterval(()=>{ flush(); }, 15000);
+  setInterval(()=>{ if(!Q.length && online && !syncing && !document.hidden && !$('#sheet').classList.contains('on')) loadAll(); }, 60000);
+  window.addEventListener('online', flush);
+
+  // local apply + queue
+  function post(key, obj){ obj = Object.assign({}, obj); T[key].push(Object.assign({}, obj)); localStorage.setItem(LS.cache, JSON.stringify(T)); enqueue({op:'add', table:key, values:obj}); }
+  function patch(key, row, changes){ const keyVal = row[KEYCOL[key]]; Object.assign(row, changes); localStorage.setItem(LS.cache, JSON.stringify(T)); const v={}; COLS[key].forEach(c=>v[c]=row[c]??''); enqueue({op:'update', table:key, keyVal, values:v}); }
+
+  // ================= stock logic =================
+  function stock(){ // {sku:{loc:qty}}
+    const S={}; const get=(s,l)=>{ S[s]=S[s]||{}; return S[s][l]||0; }; const set=(s,l,v)=>{ S[s]=S[s]||{}; S[s][l]=v; };
+    const rows=[...T.bev].sort((a,b)=>a.Tidspunkt<b.Tidspunkt?-1:1);
+    for(const r of rows){ const n=num(r.Antal)||0, s=r.SKU;
+      if(r.Type==='Optælling') set(s, r.Til, n);
+      else if(r.Type==='Tapning') set(s, r.Til, get(s,r.Til)+n);
+      else if(r.Type==='Flyt'){ set(s, r.Fra, get(s,r.Fra)-n); set(s, r.Til, get(s,r.Til)+n); }
+      else if(r.Type==='Ud'||r.Type==='Udtag') set(s, r.Fra, get(s,r.Fra)-n);
+      else if(r.Type==='Justering'){ if(r.Fra && LOCS().includes(r.Fra)) set(s,r.Fra,get(s,r.Fra)-n); if(r.Til && LOCS().includes(r.Til)) set(s,r.Til,get(s,r.Til)+n); } }
+    return S;
+  }
+  function bevRow(o){ // fills LPA & AfgiftKr
+    const p = prod(o.SKU); const l = p ? lpaPerBottle(p) : null; const n = num(o.Antal)||0;
+    const lpa = l!=null ? Math.round(n*l*1000)/1000 : '';
+    const kr = (o.Afgift==='Med' && lpa!=='') ? Math.round(lpa*SATS()*(1-LEMP()/100)*100)/100 : (o.Afgift==='Med' ? '' : 0);
+    return Object.assign({ ID:uid(), Tidspunkt:iso(), Hvem:cfg.name||'', Note:'', Kunde:'', 'Årsag':'', Lot:'', Fra:'', Til:'', Afgift:'-' }, o, { LPA:lpa, AfgiftKr:kr });
+  }
+
+  // ================= scan mode & basket =================
+  let mode='count', opts={ loc:'Hovedlager', kunde:'', afgift:'Med', reason:'' };
+  let basket={}; // sku -> qty
+  function renderModeOpts(){
+    const L = LOCS(); const chips = (arr, sel, key, cls='') => arr.map(x=>`<button class="chip ${x===sel?'on '+cls:''}" data-opt="${key}" data-val="${esc(x)}">${esc(x)}</button>`).join('');
+    let h='';
+    if(mode==='count') h = `<div class="steprow"><span>Tæller:</span>${chips(L, opts.loc, 'loc')}</div><div class="note">Optællingen sætter lagertallet for de scannede varer i ${esc(opts.loc)}. Varer du ikke scanner, røres ikke.</div>`;
+    if(mode==='move') h = `<div class="note copper">Hovedlager → Butik. Varen forlader afgiftszonen – afgiften beregnes og afregnes (${fmt(SATS(),0)} kr/L ren alkohol).</div>`;
+    if(mode==='out'){ const ks = T.kunder.map(k=>k.Kunde);
+      h = `<div class="field"><label>Kunde</label><select id="kundeSel"><option value="">Vælg kunde …</option>${ks.map(k=>`<option ${k===opts.kunde?'selected':''}>${esc(k)}</option>`).join('')}</select></div>
+        <div class="steprow"><span>Afgift:</span>${chips(['Med','Uden','Eksport'], opts.afgift, 'afgift', opts.afgift==='Med'?'copper':'blue')}</div>
+        <div class="steprow"><span>Fra:</span>${chips(L, opts.loc, 'loc')}</div>`; }
+    if(mode==='take') h = `<div class="steprow"><span>Fra:</span>${chips(L, opts.loc, 'loc')}</div><div class="steprow"><span>Årsag:</span>${chips(REASONS(), opts.reason, 'reason')}</div>
+        <div class="note ${opts.loc==='Hovedlager'?'copper':''}">${opts.loc==='Hovedlager' ? 'Udtag fra hovedlager forlader afgiftszonen – afgift beregnes.' : 'Udtag fra butik: afgiften er allerede betalt, registreres kun til bogføring og svind.'}</div>`;
+    $('#modeOpts').innerHTML = h;
+    $('#modeOpts').querySelectorAll('[data-opt]').forEach(b=>b.addEventListener('click',()=>{ opts[b.dataset.opt]=b.dataset.val; renderModeOpts(); }));
+    const ks=$('#kundeSel'); if(ks) ks.addEventListener('change',()=>{ opts.kunde=ks.value; const k=T.kunder.find(x=>x.Kunde===ks.value); if(k){ opts.afgift = k.Afgiftsstatus==='Uden'?'Uden':k.Afgiftsstatus==='Eksport'?'Eksport':'Med'; } renderModeOpts(); });
+  }
+  $('#modeRow').addEventListener('click', e => { const b=e.target.closest('[data-mode]'); if(!b) return; if(Object.keys(basket).length && !confirm('Kurven tømmes ved skift. Fortsæt?')) return; basket={}; mode=b.dataset.mode; $('#modeRow').querySelectorAll('.chip').forEach(x=>x.classList.toggle('on',x===b)); if(mode==='move'){ opts.loc='Hovedlager'; } renderModeOpts(); renderBasket(); });
+
+  function addToBasket(sku, qty, set=false){ basket[sku] = set ? qty : (basket[sku]||0)+qty; if(basket[sku]<=0) delete basket[sku]; renderBasket(); }
+  function handleCode(code){
+    const p = findBy(code);
+    if(!p){ beep(false); showReadout(null, code); openUnknown(code); return; }
+    if(isColli(p, code)){ const q=num(p.FlaskerPrKolli)||num(setting('Kolli standard',6))||6; addToBasket(p.SKU,q); beep(); showReadout(p,null,q,true); return; }
+    if(step==='ask'){ beep(); openQty(p); return; }
+    addToBasket(p.SKU, Number(step)); beep(); showReadout(p,null,Number(step));
+  }
+  function showReadout(p, code, added, colli){
+    const r=$('#readout');
+    if(!p){ r.className='readout unknown'; r.innerHTML=`<div class="name">Ukendt kode</div><div class="meta mono">${esc(code)}</div><div class="qty">?<small>ikke i varelisten</small></div>`; return; }
+    r.className='readout'; const q=basket[p.SKU]||0; const S=stock()[p.SKU]||{};
+    r.innerHTML=`<div class="name">${esc(p.Navn)}</div><div class="meta"><span class="mono">${esc(p.SKU)}</span> · lager: ${LOCS().map(l=>`${esc(l)} ${S[l]||0}`).join(' · ')}</div><div class="qty">${q}<small>${added?`+${added}${colli?' (kolli)':''}`:'i kurv'}</small></div>`;
+  }
+  function renderBasket(){
+    const keys=Object.keys(basket); const labels={count:'Optælling',move:'Flyt til butik',out:'Ud til kunde',take:'Udtag'};
+    $('#basketHead').textContent = `${labels[mode]} – ${keys.length?keys.length+' varer, '+keys.reduce((a,k)=>a+basket[k],0)+' flasker':'kurv'}`;
+    $('#basketList').innerHTML = keys.length ? keys.map(s=>{ const p=prod(s)||{Navn:s}; const l=lpaPerBottle(p);
+      return `<div class="row" data-crow="${esc(s)}"><div class="txt"><div class="n">${esc(p.Navn)}</div><div class="s"><span class="mono">${esc(s)}</span>${l==null?' · <span style="color:var(--warn)">cl/% mangler</span>':''}</div></div>
+        <div class="q">${basket[s]}</div><div class="pm"><button data-dec="${esc(s)}">−</button><button data-inc="${esc(s)}">+</button></div></div>`; }).join('') : '<div class="empty">Tom. Scan eller søg for at lægge i kurven.</div>';
+    $('#postBtn').disabled = !keys.length;
+  }
+  $('#basketList').addEventListener('click', e=>{ const i=e.target.closest('[data-inc]'), d=e.target.closest('[data-dec]'); if(i) addToBasket(i.dataset.inc,1); if(d) addToBasket(d.dataset.dec,-1); });
+  $('#clearBtn').onclick = () => { basket={}; renderBasket(); };
+  $('#postBtn').onclick = () => {
+    const keys=Object.keys(basket); if(!keys.length) return;
+    if(mode==='out' && !opts.kunde){ toast('Vælg kunde'); return; }
+    if(mode==='take' && !opts.reason){ toast('Vælg årsag'); return; }
+    const missing = keys.filter(s=>{ const p=prod(s); return p && lpaPerBottle(p)==null; });
+    const needsTax = (mode==='move') || (mode==='out'&&opts.afgift==='Med') || (mode==='take'&&opts.loc==='Hovedlager');
+    if(needsTax && missing.length && !confirm(`${missing.length} varer mangler cl/% – afgiften kan ikke regnes for dem. Bogfør alligevel?`)) return;
+    for(const s of keys){ const n=basket[s]; let o;
+      if(mode==='count') o={Type:'Optælling', SKU:s, Antal:n, Til:opts.loc, Afgift:'-'};
+      if(mode==='move') o={Type:'Flyt', SKU:s, Antal:n, Fra:'Hovedlager', Til:'Butik', Afgift:'Med'};
+      if(mode==='out') o={Type:'Ud', SKU:s, Antal:n, Fra:opts.loc, Til:opts.kunde, Kunde:opts.kunde, Afgift:opts.afgift};
+      if(mode==='take') o={Type:'Udtag', SKU:s, Antal:n, Fra:opts.loc, Til:opts.reason, 'Årsag':opts.reason, Afgift: opts.loc==='Hovedlager'?'Med':'-'};
+      post('bev', bevRow(o)); }
+    toast(`Bogført: ${keys.length} varer`); basket={}; render(); scan.focus();
+  };
+
+  // scan input & camera
+  const scan=$('#scan');
+  scan.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); const v=scan.value; scan.value=''; if(v.trim()) handleCode(v); } });
+  document.querySelectorAll('[data-step]').forEach(b=>b.addEventListener('click',()=>{ step = b.dataset.step==='ask'?'ask':Number(b.dataset.step); localStorage.setItem(LS.step, JSON.stringify(step)); document.querySelectorAll('[data-step]').forEach(x=>x.classList.toggle('on',x===b)); }));
+  let qr=null,lastCode='',lastT=0;
+  async function startCam(){ $('#camNote').style.display='none'; if(typeof Html5Qrcode==='undefined'){ camFail('Scanner-biblioteket kunne ikke hentes.'); return; } $('#cam').style.display='block';
+    try{ qr=new Html5Qrcode('reader',{formatsToSupport:[Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.UPC_E,Html5QrcodeSupportedFormats.CODE_128,Html5QrcodeSupportedFormats.CODE_39,Html5QrcodeSupportedFormats.QR_CODE],experimentalFeatures:{useBarCodeDetectorIfSupported:true},verbose:false});
+      await qr.start({facingMode:'environment'},{fps:10,qrbox:{width:280,height:150},aspectRatio:1.5},txt=>{ const now=Date.now(); if(txt===lastCode&&now-lastT<1800) return; lastCode=txt; lastT=now; handleCode(txt); },()=>{});
+      $('#camBtn').textContent='Scanner …'; $('#camBtn').disabled=true;
+    }catch(e){ await stopCam(); camFail('Kameraet kunne ikke åbnes. Giv browseren adgang til kameraet, eller brug en Bluetooth-scanner.'); } }
+  async function stopCam(){ try{ if(qr){ await qr.stop(); qr.clear(); } }catch(e){} qr=null; $('#cam').style.display='none'; $('#camBtn').textContent='Kamera'; $('#camBtn').disabled=false; }
+  function camFail(m){ const n=$('#camNote'); n.textContent=m; n.style.display='block'; }
+  $('#camBtn').onclick=startCam; $('#camClose').onclick=stopCam;
+
+  const search=$('#search'), searchList=$('#searchList');
+  const matches = q => T.varer.filter(p=>String(p.Aktiv||'Ja')!=='Nej' && ((p.Navn||'').toLowerCase().includes(q)||(p.SKU||'').toLowerCase().includes(q)||String(p.Stregkode||'').includes(q)));
+  search.addEventListener('input',()=>{ const q=search.value.trim().toLowerCase(); if(!q){ searchList.style.display='none'; return; } const hits=matches(q).slice(0,12); searchList.style.display='block';
+    searchList.innerHTML = hits.length ? hits.map(p=>`<button class="row rowbtn" data-pick="${esc(p.SKU)}"><div class="txt"><div class="n">${esc(p.Navn)}</div><div class="s mono">${esc(p.SKU)}</div></div><div class="q">${basket[p.SKU]||0}</div></button>`).join('') : '<div class="empty">Ingen varer matcher.</div>'; });
+  searchList.addEventListener('click',e=>{ const b=e.target.closest('[data-pick]'); if(!b) return; search.value=''; searchList.style.display='none'; openQty(prod(b.dataset.pick)); });
+
+  // ================= sheets =================
+  const sheet=$('#sheet'), card=$('#sheetCard');
+  function openSheet(h){ card.innerHTML=h; sheet.classList.add('on'); const f=card.querySelector('input,select,textarea'); if(f) setTimeout(()=>f.focus(),50); }
+  function closeSheet(){ sheet.classList.remove('on'); card.innerHTML=''; }
+  sheet.addEventListener('click',e=>{ if(e.target===sheet) closeSheet(); });
+  function openQty(p){
+    openSheet(`<h3>${esc(p.Navn)}</h3><div class="s" style="color:var(--ink-2);margin-bottom:12px"><span class="mono">${esc(p.SKU)}</span> · i kurv: <b>${basket[p.SKU]||0}</b></div>
+      <div class="field"><label>Antal</label><input id="qtyIn" type="number" inputmode="numeric" min="0" placeholder="0"></div>
+      <div class="actions"><button class="btn green" id="qAdd">Læg til</button><button class="btn" id="qSet">Sæt antal</button><button class="btn quiet" id="qCancel">Annullér</button></div>`);
+    const go=set=>{ const v=num(card.querySelector('#qtyIn').value); if(v==null) return; addToBasket(p.SKU,v,set); showReadout(p,null,set?0:v); beep(); closeSheet(); scan.focus(); };
+    card.querySelector('#qAdd').onclick=()=>go(false); card.querySelector('#qSet').onclick=()=>go(true); card.querySelector('#qCancel').onclick=closeSheet;
+    card.querySelector('#qtyIn').addEventListener('keydown',e=>{ if(e.key==='Enter') go(false); });
+  }
+  function openUnknown(code){
+    const looksEan=/^\d{8,14}$/.test(norm(code));
+    openSheet(`<h3>Ukendt kode</h3><div class="mono" style="margin-bottom:12px">${esc(code)}</div>
+      <div class="field"><label>Knyt til eksisterende vare</label><div class="steprow" style="margin:0 0 8px"><button class="chip on" id="lkB">Flaske</button><button class="chip" id="lkK">Kolli</button></div>
+      <input id="linkQ" placeholder="Søg navn eller SKU …" autocomplete="off"><div class="list" id="linkList" style="display:none;margin-top:6px"></div></div>
+      <div class="actions"><button class="btn" id="nNew">Opret som ny vare</button><button class="btn quiet" id="nCancel">Annullér</button></div>`);
+    let asColli=false; card.querySelector('#lkB').onclick=()=>{asColli=false;card.querySelector('#lkB').classList.add('on');card.querySelector('#lkK').classList.remove('on');};
+    card.querySelector('#lkK').onclick=()=>{asColli=true;card.querySelector('#lkK').classList.add('on');card.querySelector('#lkB').classList.remove('on');};
+    const lq=card.querySelector('#linkQ'), ll=card.querySelector('#linkList');
+    lq.addEventListener('input',()=>{ const q=lq.value.trim().toLowerCase(); if(!q){ll.style.display='none';return;} const hits=matches(q).slice(0,8); ll.style.display='block';
+      ll.innerHTML=hits.map(p=>`<button class="row rowbtn" data-link="${esc(p.SKU)}"><div class="txt"><div class="n">${esc(p.Navn)}</div><div class="s mono">${esc(p.SKU)}${p.Stregkode?' · '+esc(p.Stregkode):''}</div></div></button>`).join('')||'<div class="empty">Ingen match.</div>'; });
+    ll.addEventListener('click',e=>{ const b=e.target.closest('[data-link]'); if(!b) return; const p=prod(b.dataset.link);
+      if(looksEan) patch('varer', p, asColli?{KolliStregkode:norm(code),Opdateret:iso()}:{Stregkode:norm(code),Opdateret:iso()});
+      closeSheet(); handleCode(looksEan?norm(code):p.SKU); toast('Kode knyttet til '+p.SKU); });
+    card.querySelector('#nNew').onclick=()=>{ closeSheet(); openItem(null, looksEan?norm(code):''); };
+    card.querySelector('#nCancel').onclick=closeSheet;
+  }
+  function openItem(p, ean=''){
+    const isNew=!p; p=p||{SKU:'',Navn:'',Øko:'Nej',cl:'',Pct:'',Stregkode:ean,KolliStregkode:'',FlaskerPrKolli:6,Aktiv:'Ja',Tjek:'',Note:''};
+    openSheet(`<h3>${isNew?'Ny vare':'Redigér vare'}</h3>
+      <div class="grid2"><div class="field"><label>SKU</label><input id="eSku" class="mono" value="${esc(p.SKU)}" placeholder="SK-0000" ${isNew?'':'readonly'}></div><div class="field"><label>Øko</label><select id="eEco"><option ${p.Øko==='Ja'?'selected':''}>Ja</option><option ${p.Øko!=='Ja'?'selected':''}>Nej</option></select></div></div>
+      <div class="field"><label>Navn</label><input id="eName" value="${esc(p.Navn)}"></div>
+      <div class="grid2"><div class="field"><label>Flaske (cl)</label><input id="eCl" type="number" inputmode="decimal" value="${esc(p.cl)}"></div><div class="field"><label>Alkohol %</label><input id="ePct" type="number" inputmode="decimal" value="${esc(p.Pct)}"></div></div>
+      <div class="grid2"><div class="field"><label>Stregkode</label><input id="eEan" class="mono" inputmode="numeric" value="${esc(p.Stregkode)}"></div><div class="field"><label>Kolli-stregkode</label><input id="eColli" class="mono" inputmode="numeric" value="${esc(p.KolliStregkode)}"></div></div>
+      <div class="grid2"><div class="field"><label>Flasker pr. kolli</label><input id="eKolli" type="number" inputmode="numeric" value="${esc(p.FlaskerPrKolli||6)}"></div><div class="field"><label>Aktiv</label><select id="eAct"><option ${p.Aktiv!=='Nej'?'selected':''}>Ja</option><option ${p.Aktiv==='Nej'?'selected':''}>Nej</option></select></div></div>
+      <div class="field"><label>Note</label><input id="eNote" value="${esc(p.Note)}"></div>
+      <div class="actions"><button class="btn green" id="eSave">Gem</button><button class="btn quiet" id="eCancel">Annullér</button></div>`);
+    card.querySelector('#eSave').onclick=()=>{ const sku=norm(card.querySelector('#eSku').value); if(!sku){toast('SKU mangler');return;} if(isNew && prod(sku)){toast('SKU findes allerede');return;}
+      const cl=num(card.querySelector('#eCl').value), pct=num(card.querySelector('#ePct').value);
+      const ch={SKU:sku, Navn:card.querySelector('#eName').value.trim()||sku, Øko:card.querySelector('#eEco').value, cl:cl??'', Pct:pct??'', Stregkode:norm(card.querySelector('#eEan').value), KolliStregkode:norm(card.querySelector('#eColli').value), FlaskerPrKolli:num(card.querySelector('#eKolli').value)||6, Aktiv:card.querySelector('#eAct').value, Tjek:(cl&&pct)?'':'Ja', Note:card.querySelector('#eNote').value.trim(), Opdateret:iso()};
+      if(isNew) post('varer', ch); else patch('varer', p, ch);
+      render(); closeSheet(); toast('Gemt'); };
+    card.querySelector('#eCancel').onclick=closeSheet;
+  }
+
+  // ================= production / bulk =================
+  const lotNr=(bog,side)=>`${String(bog).trim()}P${String(side).trim().padStart(3,'0')}`;
+  function openLot(){
+    openSheet(`<h3>Ny produktion</h3>
+      <div class="grid3"><div class="field"><label>Lab-bog</label><input id="lBog" inputmode="numeric" placeholder="12"></div><div class="field"><label>Side</label><input id="lSide" inputmode="numeric" placeholder="24"></div><div class="field"><label>Lot-nr</label><input id="lLot" class="mono" readonly placeholder="12P024"></div></div>
+      <div class="field"><label>Produkt (frit navn, fx "Batch 46 base")</label><input id="lProd" placeholder="Hvad er det?"></div>
+      <div class="field"><label>Tiltænkt SKU (valgfrit)</label><input id="lSkuQ" placeholder="Søg SKU …" autocomplete="off"><div class="list" id="lSkuList" style="display:none;margin-top:6px"></div></div>
+      <div class="grid3"><div class="field"><label>Liter</label><input id="lL" type="number" inputmode="decimal" step="0.1"></div><div class="field"><label>%</label><input id="lPct" type="number" inputmode="decimal" step="0.1"></div><div class="field"><label>Liter ren alk.</label><input id="lLpa" readonly></div></div>
+      <div class="grid2"><div class="field"><label>Dato</label><input id="lDate" type="date" value="${iso().slice(0,10)}"></div><div class="field"><label>Står i</label><input id="lTank" placeholder="Tank 2 / IBC / fad nr."></div></div>
+      <div class="field"><label>Note</label><input id="lNote"></div>
+      <div class="actions"><button class="btn green" id="lSave">Gem lot → mellemlager</button><button class="btn quiet" id="lCancel">Annullér</button></div>`);
+    let sku=''; const upd=()=>{ const b=card.querySelector('#lBog').value, s=card.querySelector('#lSide').value; card.querySelector('#lLot').value=(b&&s)?lotNr(b,s):''; const L=num(card.querySelector('#lL').value), P=num(card.querySelector('#lPct').value); card.querySelector('#lLpa').value=(L&&P)?fmt(L*P/100,1):''; };
+    ['lBog','lSide','lL','lPct'].forEach(id=>card.querySelector('#'+id).addEventListener('input',upd));
+    const lq=card.querySelector('#lSkuQ'), ll=card.querySelector('#lSkuList');
+    lq.addEventListener('input',()=>{ sku=''; const q=lq.value.trim().toLowerCase(); if(!q){ll.style.display='none';return;} const hits=matches(q).slice(0,8); ll.style.display='block'; ll.innerHTML=hits.map(p=>`<button class="row rowbtn" data-s="${esc(p.SKU)}"><div class="txt"><div class="n">${esc(p.Navn)}</div><div class="s mono">${esc(p.SKU)}</div></div></button>`).join('')||'<div class="empty">Ingen match.</div>'; });
+    ll.addEventListener('click',e=>{ const b=e.target.closest('[data-s]'); if(!b) return; sku=b.dataset.s; lq.value=sku+' · '+prod(sku).Navn; ll.style.display='none'; if(!card.querySelector('#lProd').value) card.querySelector('#lProd').value=prod(sku).Navn; });
+    card.querySelector('#lSave').onclick=()=>{ const lot=card.querySelector('#lLot').value, L=num(card.querySelector('#lL').value), P=num(card.querySelector('#lPct').value), name=card.querySelector('#lProd').value.trim();
+      if(!lot){toast('Bog og side mangler');return;} if(!(L>0)||!(P>0)){toast('Liter og % mangler');return;} if(!name){toast('Produkt mangler');return;}
+      if(T.prod.some(r=>r.LotNr===lot && r.Type==='Destillation') && !confirm(lot+' findes allerede. Gem alligevel?')) return;
+      const lpa=Math.round(L*P/100*100)/100, now=iso();
+      post('prod',{LotNr:lot, Dato:card.querySelector('#lDate').value, Type:'Destillation', Produkt:name, SKU:sku, Bog:card.querySelector('#lBog').value, Side:card.querySelector('#lSide').value, Liter:L, Pct:P, LPA:lpa, KildeLots:'', Beholder:card.querySelector('#lTank').value.trim(), Hvem:cfg.name||'', Note:card.querySelector('#lNote').value.trim()});
+      post('bulk',{ID:uid(), LotNr:lot, Produkt:name, SKU:sku, Liter:L, Pct:P, LPA:lpa, Beholder:card.querySelector('#lTank').value.trim(), Status:'På lager', Oprettet:now, Opdateret:now, Hvem:cfg.name||'', Note:card.querySelector('#lNote').value.trim()});
+      render(); closeSheet(); toast(lot+' på mellemlager'); };
+    card.querySelector('#lCancel').onclick=closeSheet;
+  }
+  $('#newLotBtn').onclick=openLot;
+  function openBulk(e){
+    const L0=num(e.Liter)||0, P0=num(e.Pct)||0;
+    openSheet(`<h3>${esc(e.Produkt)}</h3><div class="s" style="color:var(--ink-2);margin-bottom:12px"><span class="mono">${esc(e.LotNr)}</span> · ${fmt(L0)} L · ${fmt(P0)} % · ${fmt(L0*P0/100)} L ren alk. · ${esc(e.Beholder||'')}</div>
+      <div class="steprow" id="bAct"><button class="chip on" data-a="tap">Tap til SKU</button><button class="chip" data-a="adj">Fortynd / justér</button><button class="chip" data-a="rm">Fjern</button></div>
+      <div id="bBody"></div>`);
+    const body=card.querySelector('#bBody'); let sku=e.SKU||'';
+    const show=a=>{
+      card.querySelectorAll('#bAct .chip').forEach(x=>x.classList.toggle('on',x.dataset.a===a));
+      if(a==='tap') body.innerHTML=`<div class="field"><label>SKU der tappes</label><input id="tQ" placeholder="Søg SKU …" autocomplete="off" value="${sku?esc(sku+' · '+(prod(sku)||{}).Navn):''}"><div class="list" id="tList" style="display:none;margin-top:6px"></div></div>
+        <div class="grid2"><div class="field"><label>Antal flasker</label><input id="tN" type="number" inputmode="numeric"></div><div class="field"><label>Liter brugt</label><input id="tL" readonly></div></div>
+        <div class="note" id="tInfo">Restmængde på tanken regnes automatisk. Flaskerne lander på Hovedlager med lot-nr ${esc(e.LotNr)}.</div>
+        <div class="actions"><button class="btn green" id="tGo">Bogfør tapning</button><button class="btn quiet" id="bCancel">Annullér</button></div>`;
+      if(a==='adj') body.innerHTML=`<div class="steprow"><span>Type:</span><button class="chip on" data-t="Fortynding">Fortynding</button><button class="chip" data-t="Samling">Samling</button><button class="chip" data-t="Fadlagring">Fadlagring</button><button class="chip" data-t="Svind">Svind</button></div>
+        <div class="grid2"><div class="field"><label>Ny liter</label><input id="aL" type="number" inputmode="decimal" step="0.1" value="${L0}"></div><div class="field"><label>Ny %</label><input id="aP" type="number" inputmode="decimal" step="0.1" value="${P0}"></div></div>
+        <div class="note" id="aInfo"></div>
+        <div class="grid2"><div class="field"><label>Står i</label><input id="aTank" value="${esc(e.Beholder||'')}"></div><div class="field"><label>Kilde-lots (ved samling)</label><input id="aSrc" placeholder="12P020;12P021"></div></div>
+        <div class="field"><label>Note</label><input id="aNote"></div>
+        <div class="actions"><button class="btn green" id="aGo">Gem</button><button class="btn quiet" id="bCancel">Annullér</button></div>`;
+      if(a==='rm') body.innerHTML=`<div class="note warn">Fjerner posten fra mellemlageret uden tapning. Brug "Svind" hvis der skal stå en forklaring i produktionsloggen.</div><div class="actions"><button class="btn danger" id="rGo">Fjern</button><button class="btn quiet" id="bCancel">Annullér</button></div>`;
+      const c=body.querySelector('#bCancel'); if(c) c.onclick=closeSheet;
+      if(a==='tap'){ const tq=body.querySelector('#tQ'), tl=body.querySelector('#tList');
+        tq.addEventListener('input',()=>{ sku=''; const q=tq.value.trim().toLowerCase(); if(!q){tl.style.display='none';return;} const hits=matches(q).slice(0,8); tl.style.display='block'; tl.innerHTML=hits.map(p=>`<button class="row rowbtn" data-s="${esc(p.SKU)}"><div class="txt"><div class="n">${esc(p.Navn)}</div><div class="s mono">${esc(p.SKU)} · ${esc(p.cl||'?')} cl</div></div></button>`).join('')||'<div class="empty">Ingen match.</div>'; });
+        tl.addEventListener('click',ev=>{ const b=ev.target.closest('[data-s]'); if(!b) return; sku=b.dataset.s; tq.value=sku+' · '+prod(sku).Navn; tl.style.display='none'; calc(); });
+        const calc=()=>{ const p=prod(sku), n=num(body.querySelector('#tN').value); const cl=p?num(p.cl):null; body.querySelector('#tL').value=(cl&&n)?fmt(n*cl/100,1):''; if(p && !cl) body.querySelector('#tInfo').textContent='SKU mangler cl – ret varen først.'; };
+        body.querySelector('#tN').addEventListener('input',calc); calc();
+        body.querySelector('#tGo').onclick=()=>{ const p=prod(sku), n=num(body.querySelector('#tN').value); if(!p){toast('Vælg SKU');return;} if(!(n>0)){toast('Antal mangler');return;} const cl=num(p.cl); if(!cl){toast('SKU mangler cl');return;}
+          const used=n*cl/100; if(used>L0+0.5 && !confirm(`Der bruges ${fmt(used)} L men der står kun ${fmt(L0)} L. Fortsæt?`)) return;
+          const pp=num(p.Pct); if(pp && Math.abs(pp-P0)>0.6 && !confirm(`Tanken står til ${fmt(P0)} % men SKU'en er ${fmt(pp)} %. Fortsæt?`)) return;
+          post('bev', bevRow({Type:'Tapning', SKU:sku, Antal:n, Fra:'', Til:'Hovedlager', Afgift:'-', Lot:e.LotNr, Note:`${fmt(used)} L fra ${e.LotNr}`}));
+          const rest=Math.max(0,Math.round((L0-used)*10)/10);
+          patch('bulk', e, {Liter:rest, LPA:Math.round(rest*P0/100*100)/100, Status: rest<0.5?'Tappet':'På lager', Opdateret:iso()});
+          post('prod',{LotNr:e.LotNr, Dato:iso().slice(0,10), Type:'Tapning', Produkt:e.Produkt, SKU:sku, Bog:'', Side:'', Liter:-Math.round(used*10)/10, Pct:P0, LPA:-Math.round(used*P0/100*100)/100, KildeLots:e.LotNr, Beholder:e.Beholder||'', Hvem:cfg.name||'', Note:`${n} fl. ${p.Navn}`});
+          render(); closeSheet(); toast(`${n} fl. tappet – ${fmt(rest)} L tilbage`); }; }
+      if(a==='adj'){ let typ='Fortynding'; body.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{ typ=b.dataset.t; body.querySelectorAll('[data-t]').forEach(x=>x.classList.toggle('on',x===b)); info(); });
+        const info=()=>{ const L=num(body.querySelector('#aL').value)||0, P=num(body.querySelector('#aP').value)||0; const d=L*P/100-L0*P0/100; body.querySelector('#aInfo').textContent=`Ren alkohol: ${fmt(L0*P0/100)} → ${fmt(L*P/100)} L (${d>=0?'+':''}${fmt(d)}). ${typ==='Fortynding'&&Math.abs(d)>0.5?'OBS: fortynding bør give ±0.':''}`; };
+        body.querySelector('#aL').addEventListener('input',info); body.querySelector('#aP').addEventListener('input',info); info();
+        body.querySelector('#aGo').onclick=()=>{ const L=num(body.querySelector('#aL').value), P=num(body.querySelector('#aP').value); if(!(L>=0)||!(P>0)){toast('Liter/% mangler');return;}
+          post('prod',{LotNr:e.LotNr, Dato:iso().slice(0,10), Type:typ, Produkt:e.Produkt, SKU:e.SKU||'', Bog:'', Side:'', Liter:Math.round((L-L0)*10)/10, Pct:P, LPA:Math.round((L*P/100-L0*P0/100)*100)/100, KildeLots:body.querySelector('#aSrc').value.trim(), Beholder:body.querySelector('#aTank').value.trim(), Hvem:cfg.name||'', Note:body.querySelector('#aNote').value.trim()||`${fmt(L0)} L @ ${fmt(P0)}% → ${fmt(L)} L @ ${fmt(P)}%`});
+          patch('bulk', e, {Liter:L, Pct:P, LPA:Math.round(L*P/100*100)/100, Beholder:body.querySelector('#aTank').value.trim(), Status:L<0.5?'Tappet':'På lager', Opdateret:iso()});
+          render(); closeSheet(); toast('Gemt'); }; }
+      if(a==='rm') body.querySelector('#rGo').onclick=()=>{ if(!confirm('Fjern '+e.LotNr+' fra mellemlageret?')) return; patch('bulk', e, {Status:'Fjernet', Opdateret:iso()}); render(); closeSheet(); };
+    };
+    card.querySelector('#bAct').addEventListener('click',ev=>{ const b=ev.target.closest('[data-a]'); if(b) show(b.dataset.a); }); show('tap');
+  }
+  $('#bulkList').addEventListener('click',ev=>{ const b=ev.target.closest('[data-bulk]'); if(b) openBulk(T.bulk.find(x=>x.ID===b.dataset.bulk)); });
+  function renderProd(){
+    const live=T.bulk.filter(e=>e.Status==='På lager');
+    $('#bulkList').innerHTML = live.length ? live.map(e=>`<button class="row rowbtn" data-bulk="${esc(e.ID)}"><div class="txt"><div class="n">${esc(e.Produkt)}</div><div class="s"><span class="mono">${esc(e.LotNr)}</span>${e.SKU?' · '+esc(e.SKU):''}${e.Beholder?' · '+esc(e.Beholder):''} · ${fmt(num(e.Pct))} %</div></div><div class="q">${fmt(num(e.Liter))}<small> L</small></div></button>`).join('') : '<div class="empty">Intet på mellemlager.</div>';
+    const recent=[...T.prod].slice(-15).reverse();
+    $('#prodList').innerHTML = recent.length ? recent.map(r=>`<div class="row"><div class="txt"><div class="n">${esc(r.Produkt)}</div><div class="s"><span class="mono">${esc(r.LotNr)}</span> · ${esc(r.Type)} · ${esc(r.Dato)}${r.Hvem?' · '+esc(r.Hvem):''}</div></div><div class="q">${fmt(num(r.Liter))}<small> L</small></div></div>`).join('') : '<div class="empty">Ingen.</div>';
+  }
+
+  // ================= items / overview =================
+  $('#addItemBtn').onclick=()=>openItem(null); $('#reloadBtn').onclick=loadAll; $('#itemFilter').addEventListener('input',renderItems);
+  function renderItems(){ const q=$('#itemFilter').value.trim().toLowerCase(); const list=q?matches(q):T.varer.filter(p=>String(p.Aktiv||'Ja')!=='Nej'); const S=stock();
+    $('#itemList').innerHTML = list.length ? list.map(p=>{ const l=lpaPerBottle(p); const s=S[p.SKU]||{};
+      return `<button class="row rowbtn" data-edit="${esc(p.SKU)}"><div class="txt"><div class="n">${esc(p.Navn)}</div><div class="s"><span class="mono">${esc(p.SKU)}</span>${p.Øko==='Ja'?' · øko':''} · ${l!=null?`${esc(p.cl)} cl / ${esc(p.Pct)} %`:'<span style="color:var(--warn)">cl/% mangler</span>'}${p.Stregkode?'':' · <span style="color:var(--copper)">ingen stregkode</span>'}</div></div><div class="q">${LOCS().map(x=>s[x]||0).join(' / ')}</div></button>`; }).join('') : '<div class="empty">Ingen varer.</div>'; }
+  $('#itemList').addEventListener('click',e=>{ const b=e.target.closest('[data-edit]'); if(b) openItem(prod(b.dataset.edit)); });
+
+  function renderOver(){
+    const S=stock(), L=LOCS(); const m=iso().slice(0,7);
+    const mon=T.bev.filter(r=>String(r.Tidspunkt).startsWith(m));
+    const sum=(rows,f)=>rows.reduce((a,r)=>a+(num(r[f])||0),0);
+    const med=mon.filter(r=>r.Afgift==='Med'), missing=med.filter(r=>r.LPA===''||r.LPA==null);
+    $('#taxBox').innerHTML = `<div class="row"><div class="txt">Flasker ud af afgiftszonen<div class="s">flyt til butik ${sum(med.filter(r=>r.Type==='Flyt'),'Antal')} · kunde ${sum(med.filter(r=>r.Type==='Ud'),'Antal')} · udtag ${sum(med.filter(r=>r.Type==='Udtag'),'Antal')}</div></div><div class="q">${sum(med,'Antal')}</div></div>
+      <div class="row"><div class="txt">Liter ren alkohol</div><div class="q">${fmt(sum(med,'LPA'),2)}</div></div>
+      <div class="row"><div class="txt">Afgift at afregne<div class="s">${fmt(SATS(),0)} kr/L${LEMP()?' − '+LEMP()+' % lempelse':''}${missing.length?' · <span style="color:var(--warn)">'+missing.length+' rækker mangler cl/%</span>':''}</div></div><div class="q">${fmt(sum(med,'AfgiftKr'),0)}<small> kr</small></div></div>
+      <div class="row"><div class="txt">Uden afgift / eksport (fl.)</div><div class="q">${sum(mon.filter(r=>r.Afgift==='Uden'),'Antal')} / ${sum(mon.filter(r=>r.Afgift==='Eksport'),'Antal')}</div></div>
+      <div class="row"><div class="txt">Udtag i alt (fl.)<div class="s">${REASONS().map(r=>r+' '+sum(mon.filter(x=>x.Type==='Udtag'&&x['Årsag']===r),'Antal')).join(' · ')}</div></div><div class="q">${sum(mon.filter(r=>r.Type==='Udtag'),'Antal')}</div></div>`;
+    const skus=Object.keys(S).filter(s=>L.some(l=>S[s][l])).sort();
+    $('#stockBox').innerHTML = skus.length ? `<table class="stock"><tr><th>Vare</th>${L.map(l=>`<th>${esc(l)}</th>`).join('')}</tr>${skus.map(s=>{ const p=prod(s)||{Navn:s}; return `<tr><td>${esc(p.Navn)}<br><span class="mono" style="font-size:11px;color:var(--ink-2)">${esc(s)}</span></td>${L.map(l=>`<td>${S[s][l]||0}</td>`).join('')}</tr>`; }).join('')}</table>` : '<div class="note">Intet lager registreret endnu – start med en optælling.</div>';
+    const log=[...T.bev].filter(r=>APP==='lager'||r.Type==='Tapning').slice(-40).reverse();
+    $('#logList').innerHTML = log.length ? log.map(r=>{ const p=prod(r.SKU); return `<div class="row"><div class="txt"><div class="n">${esc(p?p.Navn:r.SKU)}</div><div class="s">${esc(r.Type)} · ${esc(r.Fra||'')}${r.Fra&&r.Til?' → ':''}${esc(r.Til||'')} · ${String(r.Tidspunkt).slice(5,16).replace('T',' ')}${r.Hvem?' · '+esc(r.Hvem):''}${r.Afgift==='Med'?' · afgift '+fmt(num(r.AfgiftKr),0)+' kr':''}</div></div><div class="q">${r.Type==='Optælling'?'= ':''}${esc(r.Antal)}</div></div>`; }).join('') : '<div class="empty">Ingen bevægelser.</div>';
+    $('#acctNote').textContent = `${account?account.username:'–'} · ${cfg.name||'intet navn'} · ${T.varer.length} varer · ${T.bev.length} bevægelser`;
+  }
+  $('#copyStock').onclick=async()=>{ const S=stock(), L=LOCS(); const lines=[['SKU','Navn',...L].join('\t'), ...Object.keys(S).sort().map(s=>[s,(prod(s)||{}).Navn||'',...L.map(l=>S[s][l]||0)].join('\t'))].join('\n'); try{ await navigator.clipboard.writeText(lines); toast('Kopieret'); }catch(e){ prompt('Kopiér:', lines); } };
+  $('#setupBtn').onclick=()=>{ if(confirm('Åbn opsætning? Login-oplysninger skal indtastes igen.')){ localStorage.removeItem(LS.cfg); location.reload(); } };
+  $('#logoutBtn').onclick=()=>{ if(confirm('Log ud? Ubogførte rækker i køen ('+Q.length+') bliver på telefonen til næste login.')) pca.logoutRedirect({ account }); };
+
+  function renderSum(){ $('#sum').innerHTML = `${cfg.name?esc(cfg.name)+' · ':''}${syncing?'henter …':online?'online':'<span class="off">offline</span>'}${Q.length?` · <span class="pend">${Q.length} afventer</span>`:''}`; }
+  function render(){ if(APP==='lager'){ renderModeOpts(); renderBasket(); } else renderProd(); renderItems(); renderOver(); renderSum(); document.querySelectorAll('[data-step]').forEach(x=>x.classList.toggle('on',String(x.dataset.step)===String(step))); }
+  document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{ document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b)); document.querySelectorAll('.view').forEach(v=>v.classList.toggle('on',v.id==='v-'+b.dataset.v)); if(b.dataset.v!=='scan') stopCam(); else scan.focus(); }));
+
+  // ================= boot =================
+  function showSetup(err){ $('#setup').style.display='block'; $('#app').style.display='none'; const c0=cfg||DEFAULTS; $('#cfgClient').value=c0.client||''; $('#cfgTenant').value=c0.tenant||''; $('#cfgLink').value=c0.link||''; $('#cfgName').value=(cfg&&cfg.name)||''; if(err){ $('#cfgErr').textContent=err; $('#cfgErr').style.display='block'; } }
+  $('#cfgSave').onclick=()=>{ const c={client:$('#cfgClient').value.trim(), tenant:$('#cfgTenant').value.trim(), link:$('#cfgLink').value.trim(), name:$('#cfgName').value.trim()}; if(!c.client||!c.tenant||!c.link){ $('#cfgErr').textContent='Client ID, tenant ID og dele-link skal udfyldes.'; $('#cfgErr').style.display='block'; return; } localStorage.setItem(LS.cfg, JSON.stringify(c)); location.reload(); };
+  (async()=>{
+    if(!cfg){ showSetup(); return; }
+    $('#app').style.display='block'; render();
+    try{ const ok = await initAuth(); if(!ok) return; await newSession(); await loadAll(); flush(); }
+    catch(e){ showSetup('Login fejlede: '+e.message); }
+  })();
+})();
+</script>
+</body>
+</html>
